@@ -1,0 +1,9 @@
+CREATE DATABASE IF NOT EXISTS user_db;
+CREATE DATABASE IF NOT EXISTS menu_db;
+CREATE DATABASE IF NOT EXISTS order_db;
+
+GRANT ALL PRIVILEGES ON user_db.* TO 'foodhub_user'@'%';
+GRANT ALL PRIVILEGES ON menu_db.* TO 'foodhub_user'@'%';
+GRANT ALL PRIVILEGES ON order_db.* TO 'foodhub_user'@'%';
+
+FLUSH PRIVILEGES;
