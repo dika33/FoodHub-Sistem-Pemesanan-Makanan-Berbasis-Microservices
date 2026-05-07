@@ -75,3 +75,21 @@ def delete_menu(menu_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Menu item not found")
     db.delete(menu)
     db.commit()
+
+@app.put("/menus/{menu_id}", response_model=schemas.MenuItemResponse)
+def update_menu(menu_id: int, item: schemas.MenuItemCreate, db: Session = Depends(get_db)):
+    menu = db.query(models.MenuItem).filter(models.MenuItem.id == menu_id).first()
+    if menu is None:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+        
+    category = db.query(models.Category).filter(models.Category.id == item.category_id).first()
+    if not category:
+        raise HTTPException(status_code=400, detail="Category does not exist")
+        
+    for key, value in item.model_dump().items():
+        if value is not None:
+            setattr(menu, key, value)
+            
+    db.commit()
+    db.refresh(menu)
+    return menu

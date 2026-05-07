@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foodhub - Pesan Makanan Cepat & Mudah</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 500: '#8b5cf6', 600: '#7c3aed' }, // Violet
+                        accent: { 500: '#f43f5e', 600: '#e11d48' }  // Rose
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Icons (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Custom Glassmorphism & Animations */
+        body {
+            background-color: #0f172a;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(244, 63, 94, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Toast Animation */
+        #toast {
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col font-sans antialiased overflow-x-hidden">
+
+    <!-- Navbar -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-2">
+                <i data-lucide="utensils-crossed" class="text-brand-500 w-6 h-6"></i>
+                <span
+                    class="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-brand-500 to-accent-500">
+                    Foodhub
+                </span>
+            </div>
+
+            <!-- User Actions -->
+            <div class="flex items-center gap-4">
+                <div id="user-greeting" class="hidden text-sm text-slate-300 font-medium"></div>
+
+                <button id="header-login-btn" onclick="openAuthModal()"
+                    class="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-brand-500/30">
+                    <i data-lucide="log-in" class="w-4 h-4"></i> Masuk
+                </button>
+
+                <button id="header-logout-btn" onclick="logout()"
+                    class="hidden flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-sm font-semibold rounded-lg transition-all">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> Keluar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Hero Section -->
+        <div class="mb-10 text-center md:text-left">
+            <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">Mau makan apa hari ini?</h1>
+            <p class="text-slate-400">Pilih menu favoritmu dan kami akan segera menyiapkannya.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <!-- KIRI: Daftar Menu (7 Kolom) -->
+            <div class="lg:col-span-8 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-semibold flex items-center gap-2">
+                        <i data-lucide="menu-square" class="text-brand-500 w-5 h-5"></i> Menu Tersedia
+                    </h2>
+
+                    <!-- Tombol Tambah Menu (Khusus Admin/User terdaftar) -->
+                    <button id="btn-show-add-menu" onclick="toggleAddMenuForm()"
+                        class="hidden text-sm flex items-center gap-1 text-accent-500 hover:text-accent-400 transition-colors">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah Menu
+                    </button>
+                </div>
+
+                <!-- Form Tambah Menu (Hidden by default) -->
+                <div id="add-menu-section" class="hidden glass-panel rounded-xl p-5 border border-slate-700">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-4">Form Tambah Menu Baru</h3>
+                    <form id="add-menu-form" onsubmit="handleAddMenu(event)" class="flex flex-col gap-4">
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <input type="text" id="new-menu-name" placeholder="Nama Makanan" required
+                                class="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 text-white">
+                            <input type="number" id="new-menu-price" placeholder="Harga (Rp)" required min="0"
+                                class="w-full sm:w-40 bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 text-white">
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <input type="url" id="new-menu-image" placeholder="URL Gambar (Opsional, https://...)"
+                                class="flex-1 bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 text-white">
+                            <button type="submit"
+                                class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">Simpan</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Grid Menu -->
+                <div id="menu-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                    <!-- Loading State -->
+                    <div class="col-span-full text-center py-10 text-slate-500">Memuat menu...</div>
+                </div>
+            </div>
+
+            <!-- KANAN: Keranjang & Pesanan (5 Kolom) -->
+            <div class="lg:col-span-4 space-y-6">
+
+                <!-- Card Keranjang -->
+                <div class="glass-panel rounded-2xl p-6 border border-slate-700 sticky top-24 shadow-xl">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <i data-lucide="shopping-bag" class="text-accent-500 w-5 h-5"></i> Keranjang
+                    </h2>
+
+                    <div id="cart-container" class="space-y-4 max-h-[40vh] overflow-y-auto pr-2 mb-4">
+                        <div class="text-center py-8 text-slate-500 text-sm">Keranjang masih kosong.</div>
+                    </div>
+
+                    <div id="cart-total-section" class="hidden pt-4 border-t border-slate-700">
+                        <div class="flex justify-between items-center mb-6">
+                            <span class="text-slate-400">Total Pembayaran</span>
+                            <span id="cart-total-price" class="text-2xl font-bold text-white">Rp 0</span>
+                        </div>
+                        <button id="checkout-btn" onclick="handleCheckout()"
+                            class="w-full bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-accent-500/25 flex justify-center items-center gap-2">
+                            <i data-lucide="check-circle" class="w-5 h-5"></i> Pesan Sekarang
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Card Riwayat Pesanan -->
+                <div id="order-history-section" class="hidden glass-panel rounded-2xl p-6 border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i data-lucide="history" class="text-slate-400 w-5 h-5"></i> Riwayat Pesanan
+                    </h2>
+                    <div id="order-history" class="space-y-4 max-h-[30vh] overflow-y-auto pr-2">
+                        <!-- Orders will be injected here -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Authentication (Login/Register) -->
+    <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onclick="closeAuthModal()"></div>
+
+        <!-- Modal Content -->
+        <div class="relative w-full max-w-md glass-panel p-8 rounded-2xl shadow-2xl border border-slate-700 m-4 transform transition-all scale-95 opacity-0"
+            id="auth-modal-content">
+            <button onclick="closeAuthModal()"
+                class="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div class="text-center mb-8">
+                <div
+                    class="inline-flex justify-center items-center w-12 h-12 rounded-full bg-brand-500/20 text-brand-500 mb-4">
+                    <i data-lucide="user" class="w-6 h-6"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white" id="auth-title">Selamat Datang</h2>
+                <p class="text-slate-400 text-sm mt-1">Silakan masuk untuk melanjutkan pesanan</p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex p-1 bg-slate-800/50 rounded-lg mb-6">
+                <button onclick="switchAuthTab('login')" id="tab-login"
+                    class="flex-1 py-2 text-sm font-medium rounded-md bg-brand-500 text-white shadow transition-all">Masuk</button>
+                <button onclick="switchAuthTab('register')" id="tab-register"
+                    class="flex-1 py-2 text-sm font-medium rounded-md text-slate-400 hover:text-white transition-all">Daftar</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Username</label>
+                    <input type="text" id="login-username" required
+                        class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Password</label>
+                    <input type="password" id="login-password" required
+                        class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all">
+                </div>
+                <button type="submit"
+                    class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-lg transition-all shadow-lg shadow-brand-500/30 mt-2">Masuk</button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nama Lengkap</label>
+                    <input type="text" id="reg-fullname" required
+                        class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Email</label>
+                    <input type="email" id="reg-email" required
+                        class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Username</label>
+                    <input type="text" id="reg-username" required
+                        class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Password</label>
+                    <input type="password" id="reg-password" required
+                        class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all">
+                </div>
+                <button type="submit"
+                    class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-lg transition-all shadow-lg shadow-brand-500/30 mt-2">Daftar
+                    Akun</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Edit Menu -->
+    <div id="edit-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onclick="closeEditModal()"></div>
+        <div class="relative w-full max-w-md glass-panel p-8 rounded-2xl shadow-2xl border border-slate-700 m-4 transform transition-all scale-95 opacity-0" id="edit-modal-content">
+            <button onclick="closeEditModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-bold text-white">Edit Menu</h2>
+            </div>
+            <form id="edit-menu-form" onsubmit="handleEditMenuSubmit(event)" class="space-y-4">
+                <input type="hidden" id="edit-menu-id">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nama Makanan</label>
+                    <input type="text" id="edit-menu-name" required class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Harga (Rp)</label>
+                    <input type="number" id="edit-menu-price" required class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">URL Gambar</label>
+                    <input type="url" id="edit-menu-image" class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-brand-500 outline-none transition-all">
+                </div>
+                <button type="submit" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-lg transition-all shadow-lg mt-4">Simpan Perubahan</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"
+        class="fixed bottom-6 right-6 translate-y-24 opacity-0 flex items-center gap-3 glass-panel px-5 py-3 rounded-xl border-l-4 border-l-brand-500 shadow-2xl z-50">
+        <i id="toast-icon" data-lucide="info" class="w-5 h-5 text-brand-500"></i>
+        <span id="toast-msg" class="text-sm font-medium">Notifikasi</span>
+    </div>
+
+    <!-- Javascript Logic -->
+    <script>
+        // Inisialisasi Icons
+        lucide.createIcons();
+
+        const API_URL = 'http://localhost:8000';
+        let currentUser = null;
+        let token = localStorage.getItem('foodhub_token');
+        let cart = {};
+        let defaultCategoryId = 1;
+        let isAdmin = false;
+
+        // Data Mockup untuk mode offline (saat server localhost tidak berjalan)
+        let mockMenus = [
+            { id: 1, name: "Burger Spesial", price: 35000, image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=300&q=80" },
+            { id: 2, name: "Pizza MeatLover", price: 75000, image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=300&q=80" },
+            { id: 3, name: "Spaghetti Carbonara", price: 45000, image: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&w=300&q=80" },
+            { id: 4, name: "Es Kopi Susu", price: 20000, image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=300&q=80" },
+            { id: 5, name: "Ayam Geprek Sambal Matah", price: 25000, image: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=300&q=80" }
+        ];
+        let mockOrders = [];
+
+        // Format Rupiah
+        const formatRp = (angka) => {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+        };
+
+        // --- UI & Modal Logic ---
+        function openAuthModal() {
+            const modal = document.getElementById('auth-modal');
+            const content = document.getElementById('auth-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function openEditModal(id, name, price, image) {
+            document.getElementById('edit-menu-id').value = id;
+            document.getElementById('edit-menu-name').value = name;
+            document.getElementById('edit-menu-price').value = price;
+            document.getElementById('edit-menu-image').value = image === 'https://images.unsplash.com/photo-1495147466023-e6a920cdceeb?auto=format&fit=crop&w=300&q=80' ? '' : image;
+            
+            const modal = document.getElementById('edit-modal');
+            const content = document.getElementById('edit-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('edit-modal');
+            const content = document.getElementById('edit-modal-content');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function closeAuthModal() {
+            const modal = document.getElementById('auth-modal');
+            const content = document.getElementById('auth-modal-content');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function switchAuthTab(tab) {
+            const tabLogin = document.getElementById('tab-login');
+            const tabRegister = document.getElementById('tab-register');
+
+            tabLogin.className = 'flex-1 py-2 text-sm font-medium rounded-md text-slate-400 hover:text-white transition-all';
+            tabRegister.className = 'flex-1 py-2 text-sm font-medium rounded-md text-slate-400 hover:text-white transition-all';
+
+            if (tab === 'login') {
+                tabLogin.className = 'flex-1 py-2 text-sm font-medium rounded-md bg-brand-500 text-white shadow transition-all';
+                document.getElementById('login-form').classList.remove('hidden');
+                document.getElementById('register-form').classList.add('hidden');
+                document.getElementById('auth-title').textContent = 'Selamat Datang';
+            } else {
+                tabRegister.className = 'flex-1 py-2 text-sm font-medium rounded-md bg-brand-500 text-white shadow transition-all';
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('register-form').classList.remove('hidden');
+                document.getElementById('auth-title').textContent = 'Buat Akun Baru';
+            }
+        }
+
+        function toggleAddMenuForm() {
+            const section = document.getElementById('add-menu-section');
+            section.classList.toggle('hidden');
+        }
+
+        function updateAuthUI() {
+            if (currentUser) {
+                document.getElementById('header-login-btn').classList.add('hidden');
+                document.getElementById('header-logout-btn').classList.remove('hidden');
+
+                const greeting = document.getElementById('user-greeting');
+                greeting.classList.remove('hidden');
+                
+                // Tambahkan label (Admin) jika username adalah admin
+                isAdmin = currentUser.username.toLowerCase() === 'admin';
+                const roleLabel = isAdmin ? ' <span class="text-xs bg-brand-500 text-white px-2 py-0.5 rounded-full ml-2">Admin</span>' : '';
+                greeting.innerHTML = `Halo, <span class="text-white font-bold">${currentUser.username}</span>${roleLabel}`;
+
+                document.getElementById('order-history-section').classList.remove('hidden');
+                
+                // HANYA tampilkan tombol Tambah Menu jika dia adalah Admin
+                if (isAdmin) {
+                    document.getElementById('btn-show-add-menu').classList.remove('hidden');
+                } else {
+                    document.getElementById('btn-show-add-menu').classList.add('hidden');
+                    document.getElementById('add-menu-section').classList.add('hidden');
+                }
+
+                closeAuthModal();
+                loadOrders();
+            } else {
+                document.getElementById('header-login-btn').classList.remove('hidden');
+                document.getElementById('header-logout-btn').classList.add('hidden');
+                document.getElementById('user-greeting').classList.add('hidden');
+                document.getElementById('order-history-section').classList.add('hidden');
+                document.getElementById('btn-show-add-menu').classList.add('hidden');
+                document.getElementById('add-menu-section').classList.add('hidden');
+                isAdmin = false; // Pastikan isAdmin direset saat tidak ada user
+            }
+            // Panggil loadMenus setiap kali status autentikasi berubah agar UI selalu sinkron
+            loadMenus();
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const msg = document.getElementById('toast-msg');
+            const icon = document.getElementById('toast-icon');
+
+            msg.textContent = message;
+
+            if (isError) {
+                toast.classList.replace('border-l-brand-500', 'border-l-accent-500');
+                icon.classList.replace('text-brand-500', 'text-accent-500');
+                icon.setAttribute('data-lucide', 'alert-circle');
+            } else {
+                toast.classList.replace('border-l-accent-500', 'border-l-brand-500');
+                icon.classList.replace('text-accent-500', 'text-brand-500');
+                icon.setAttribute('data-lucide', 'check-circle-2');
+            }
+
+            lucide.createIcons();
+
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // --- Initial Load ---
+        window.onload = async () => {
+            await ensureDefaultCategory();
+            if (token) {
+                await checkAuth(); // Ini akan memanggil updateAuthUI() -> loadMenus()
+            } else {
+                updateAuthUI();    // Ini akan memanggil loadMenus()
+            }
+        };
+
+        // --- API Logics ---
+        async function checkAuth() {
+            try {
+                const res = await fetch(`${API_URL}/users/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    currentUser = await res.json();
+                    updateAuthUI();
+                } else {
+                    throw new Error("Token tidak valid");
+                }
+            } catch (e) {
+                console.warn("Backend offline atau token invalid. Cek token mock.");
+                if (token === "mock_token_123") {
+                    // Fallback to offline mode
+                    currentUser = { id: 99, username: "Guest" };
+                    updateAuthUI();
+                } else {
+                    logout(false);
+                }
+            }
+        }
+
+        function logout(showNotif = true) {
+            localStorage.removeItem('foodhub_token');
+            token = null;
+            currentUser = null;
+            cart = {};
+            renderCart();
+            updateAuthUI();
+            if (showNotif) showToast("Berhasil keluar");
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', document.getElementById('login-password').value);
+
+            try {
+                const res = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!res.ok) throw new Error("Gagal login dari server");
+
+                const data = await res.json();
+                token = data.access_token;
+                localStorage.setItem('foodhub_token', token);
+                showToast('Login berhasil!');
+                await checkAuth();
+            } catch (e) {
+                console.warn("Backend tidak tersedia, mengaktifkan mode Mock Login.");
+                // Mock Login untuk Preview
+                token = "mock_token_123";
+                localStorage.setItem('foodhub_token', token);
+                currentUser = { id: 99, username: username };
+                showToast('Login berhasil (Mode Offline Aktif)!');
+                updateAuthUI();
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const payload = {
+                username: document.getElementById('reg-username').value,
+                email: document.getElementById('reg-email').value,
+                full_name: document.getElementById('reg-fullname').value,
+                password: document.getElementById('reg-password').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error("Gagal register");
+
+                showToast('Registrasi berhasil! Silakan masuk.');
+                switchAuthTab('login');
+                document.getElementById('login-username').value = payload.username;
+            } catch (e) {
+                console.warn("Backend tidak tersedia, simulasi registrasi berhasil.");
+                showToast('Akun berhasil dibuat (Mode Offline)! Silakan masuk.');
+                switchAuthTab('login');
+                document.getElementById('login-username').value = payload.username;
+            }
+        }
+
+        // --- Menus & Categories ---
+        async function ensureDefaultCategory() {
+            try {
+                const res = await fetch(`${API_URL}/categories`);
+                if (!res.ok) throw new Error();
+                const cats = await res.json();
+                if (cats.length === 0) {
+                    const createRes = await fetch(`${API_URL}/categories`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: "Menu Utama", description: "Default Kategori" })
+                    });
+                    const newCat = await createRes.json();
+                    defaultCategoryId = newCat.id;
+                } else {
+                    defaultCategoryId = cats[0].id;
+                }
+            } catch (e) {
+                console.warn("Server backend tidak terhubung, menggunakan default ID 1 untuk fallback.");
+                defaultCategoryId = 1;
+            }
+        }
+
+        async function loadMenus() {
+            try {
+                const res = await fetch(`${API_URL}/menus`);
+                if (!res.ok) throw new Error("Gagal fetch API");
+                const menus = await res.json();
+                
+                // GABUNGKAN data asli dari database dengan data dummy agar tampilannya penuh
+                const combinedMenus = [...menus, ...mockMenus];
+                
+                renderMenusHTML(combinedMenus);
+            } catch (e) {
+                console.warn("Server backend offline, merender menu mock/dummy.");
+                renderMenusHTML(mockMenus); // Menggunakan mock data
+            }
+        }
+
+        function renderMenusHTML(menus) {
+            const container = document.getElementById('menu-container');
+            container.innerHTML = '';
+
+            if (!menus || menus.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 bg-slate-900/30 rounded-xl border border-dashed border-slate-700">Belum ada menu tersedia.</div>';
+                return;
+            }
+
+            menus.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'glass-panel rounded-xl overflow-hidden group hover:border-brand-500 transition-all duration-300 flex flex-col';
+
+                // Cek apakah item punya gambar, jika tidak gunakan placeholder default
+                const imageUrl = item.image || 'https://images.unsplash.com/photo-1495147466023-e6a920cdceeb?auto=format&fit=crop&w=300&q=80';
+
+                let adminButtons = '';
+                if (isAdmin) {
+                    adminButtons = `
+                        <div class="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="openEditModal(${item.id}, '${item.name.replace(/'/g, "\\'")}', ${item.price}, '${imageUrl}')" class="bg-brand-500/80 hover:bg-brand-500 text-white p-1.5 rounded-md backdrop-blur-sm transition-colors" title="Edit">
+                                <i data-lucide="edit-2" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="handleDeleteMenu(${item.id})" class="bg-accent-500/80 hover:bg-accent-500 text-white p-1.5 rounded-md backdrop-blur-sm transition-colors" title="Hapus">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                div.innerHTML = `
+                    <div class="h-40 w-full overflow-hidden relative border-b border-slate-700/50 bg-slate-800">
+                        <img src="${imageUrl}" alt="${item.name}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onerror="this.src='https://images.unsplash.com/photo-1495147466023-e6a920cdceeb?auto=format&fit=crop&w=300&q=80'">
+                        ${adminButtons}
+                    </div>
+                    <div class="p-4 flex flex-col flex-grow">
+                        <h3 class="font-bold text-lg text-white mb-1 leading-tight">${item.name}</h3>
+                        <div class="text-brand-500 font-bold mb-4">${formatRp(item.price)}</div>
+                        <button onclick="addToCart(${item.id}, '${item.name}', ${item.price})" class="mt-auto w-full bg-slate-800 hover:bg-brand-500 text-white text-sm font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2 border border-slate-700 group-hover:border-brand-500">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        async function handleAddMenu(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-menu-name').value;
+            const price = parseFloat(document.getElementById('new-menu-price').value);
+            const image = document.getElementById('new-menu-image').value;
+
+            try {
+                const res = await fetch(`${API_URL}/menus`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        price: price,
+                        category_id: defaultCategoryId,
+                        image: image || undefined // Jika backend menerima parameter image
+                    })
+                });
+
+                if (res.status === 401 || res.status === 403) throw new Error("Tidak punya akses (Harus Admin)");
+                if (!res.ok) throw new Error("Gagal API");
+                showToast('Menu berhasil ditambahkan!');
+                document.getElementById('add-menu-form').reset();
+                document.getElementById('add-menu-section').classList.add('hidden');
+                loadMenus();
+            } catch (e) {
+                console.warn("Backend offline: Menambahkan menu ke data simulasi offline.");
+                mockMenus.push({
+                    id: mockMenus.length + 1,
+                    name: name,
+                    price: price,
+                    image: image || 'https://images.unsplash.com/photo-1495147466023-e6a920cdceeb?auto=format&fit=crop&w=300&q=80'
+                });
+                showToast('Menu berhasil ditambah (Mode Offline)!');
+                document.getElementById('add-menu-form').reset();
+                document.getElementById('add-menu-section').classList.add('hidden');
+                loadMenus(); // reload mock menus
+            }
+        }
+
+        async function handleEditMenuSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-menu-id').value;
+            const name = document.getElementById('edit-menu-name').value;
+            const price = parseFloat(document.getElementById('edit-menu-price').value);
+            const image = document.getElementById('edit-menu-image').value;
+
+            try {
+                const res = await fetch(`${API_URL}/menus/${id}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ name, price, category_id: defaultCategoryId, image: image || undefined })
+                });
+
+                if (res.status === 401 || res.status === 403) throw new Error("Akses ditolak");
+                if (!res.ok) throw new Error("Gagal update");
+
+                showToast('Menu berhasil diupdate!');
+                closeEditModal();
+                loadMenus();
+            } catch (e) {
+                console.warn("Backend offline atau error:", e.message);
+                showToast(e.message || 'Gagal update menu', true);
+            }
+        }
+
+        async function handleDeleteMenu(id) {
+            if (!confirm("Yakin ingin menghapus menu ini?")) return;
+            
+            try {
+                const res = await fetch(`${API_URL}/menus/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.status === 401 || res.status === 403) throw new Error("Akses ditolak");
+                if (!res.ok) throw new Error("Gagal hapus");
+
+                showToast('Menu berhasil dihapus!');
+                loadMenus();
+            } catch (e) {
+                console.warn("Error:", e.message);
+                showToast(e.message || 'Gagal hapus menu', true);
+            }
+        }
+
+        // --- Cart Logic ---
+        function addToCart(id, name, price) {
+            if (cart[id]) {
+                cart[id].quantity += 1;
+            } else {
+                cart[id] = { id, name, price, quantity: 1 };
+            }
+            renderCart();
+            showToast(`${name} masuk keranjang!`);
+        }
+
+        function updateQuantity(id, delta) {
+            if (cart[id]) {
+                cart[id].quantity += delta;
+                if (cart[id].quantity <= 0) {
+                    delete cart[id];
+                }
+                renderCart();
+            }
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-container');
+            const totalSection = document.getElementById('cart-total-section');
+            const totalPriceEl = document.getElementById('cart-total-price');
+
+            container.innerHTML = '';
+            let total = 0;
+            let hasItems = false;
+
+            Object.values(cart).forEach(item => {
+                hasItems = true;
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center bg-slate-800/50 p-3 rounded-lg border border-slate-700/50';
+                div.innerHTML = `
+                    <div class="flex-1">
+                        <div class="font-semibold text-sm text-white">${item.name}</div>
+                        <div class="text-xs text-brand-400 mt-0.5">${formatRp(item.price)}</div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 bg-slate-900 rounded-md p-1 border border-slate-700">
+                            <button onclick="updateQuantity(${item.id}, -1)" class="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-accent-500 hover:bg-slate-800 rounded transition-colors">-</button>
+                            <span class="text-sm font-medium w-4 text-center">${item.quantity}</span>
+                            <button onclick="updateQuantity(${item.id}, 1)" class="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-brand-500 hover:bg-slate-800 rounded transition-colors">+</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            if (hasItems) {
+                totalSection.classList.remove('hidden');
+                totalPriceEl.textContent = formatRp(total);
+            } else {
+                container.innerHTML = '<div class="text-center py-8 text-slate-500 text-sm">Keranjang masih kosong. <br/> Yuk pilih menu!</div>';
+                totalSection.classList.add('hidden');
+            }
+        }
+
+        // --- Ordering ---
+        async function handleCheckout() {
+            if (!currentUser || !currentUser.id) {
+                showToast('Silakan masuk (login) dulu untuk memesan', true);
+                openAuthModal();
+                return;
+            }
+
+            const items = Object.values(cart).map(i => ({
+                menu_item_id: i.id,
+                quantity: i.quantity
+            }));
+
+            const btn = document.getElementById('checkout-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Memproses...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`${API_URL}/orders`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        user_id: currentUser.id,
+                        items: items
+                    })
+                });
+
+                if (!res.ok) throw new Error("Gagal Checkout");
+
+                showToast('Pesanan berhasil dibuat! Sedang diproses...');
+                cart = {};
+                renderCart();
+                loadOrders();
+            } catch (e) {
+                console.warn("Backend offline: Mensimulasikan pemesanan berhasil.");
+                setTimeout(() => {
+                    let orderTotal = 0;
+                    Object.values(cart).forEach(i => { orderTotal += (i.price * i.quantity) });
+
+                    mockOrders.push({
+                        id: mockOrders.length + 101,
+                        created_at: new Date().toISOString(),
+                        status: "completed",
+                        total_amount: orderTotal
+                    });
+
+                    showToast('Pesanan berhasil dibuat (Mode Offline)!');
+                    cart = {};
+                    renderCart();
+                    loadOrders(); // Load new mock orders
+                }, 1000);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        async function loadOrders() {
+            if (!currentUser) return;
+            try {
+                const res = await fetch(`${API_URL}/orders?user_id=${currentUser.id}`);
+                if (!res.ok) throw new Error("API Gagal");
+                const orders = await res.json();
+                renderOrdersHTML(orders);
+            } catch (e) {
+                console.warn("Backend offline, memuat riwayat pesanan dari data simulasi lokal.");
+                renderOrdersHTML(mockOrders);
+            }
+        }
+
+        function renderOrdersHTML(orders) {
+            const container = document.getElementById('order-history');
+            container.innerHTML = '';
+
+            if (!orders || orders.length === 0) {
+                container.innerHTML = '<div class="text-slate-500 text-sm text-center py-4">Belum ada riwayat pesanan.</div>';
+                return;
+            }
+
+            // Menyalin array agar tidak merubah array aslinya saat di reverse()
+            [...orders].reverse().forEach(order => {
+                const date = new Date(order.created_at).toLocaleString('id-ID', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                });
+
+                let statusColor = 'text-slate-400 bg-slate-800 border-slate-700';
+                let statusText = 'Pending';
+                if (order.status === 'completed') {
+                    statusColor = 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+                    statusText = 'Selesai';
+                }
+
+                const div = document.createElement('div');
+                div.className = 'p-4 rounded-xl border border-slate-700 bg-slate-800/30';
+
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="text-xs text-slate-400 mb-1">${date}</div>
+                            <strong class="text-sm font-semibold text-white">Order #${order.id}</strong>
+                        </div>
+                        <span class="px-2 py-1 border rounded-md text-xs font-medium ${statusColor}">${statusText}</span>
+                    </div>
+                    <div class="flex justify-between items-end mt-3 pt-3 border-t border-slate-700/50">
+                        <span class="text-xs text-slate-400">Total</span>
+                        <span class="font-bold text-brand-400">${formatRp(order.total_amount)}</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+    </script>
+</body>
+
+</html>

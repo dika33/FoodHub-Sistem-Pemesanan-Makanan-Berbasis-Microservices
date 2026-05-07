@@ -64,5 +64,15 @@ services:
     env_file:
       - .env
 
+  frontend:
+    build: ./frontend
+    container_name: foodhub-frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - api-gateway
+
 volumes:
   mysql_data:
